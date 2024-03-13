@@ -1,13 +1,6 @@
-import importlib
-
-import torch
 import torch.nn as nn
 
 from layers import Encoder, Decoder, DoubleConv
-
-
-def create_feature_maps(init_channel_number, number_of_fmaps):
-    return [init_channel_number * 2 ** k for k in range(number_of_fmaps)]
 
 
 class UNet3D(nn.Module):
@@ -42,7 +35,7 @@ class UNet3D(nn.Module):
 
         if isinstance(f_maps, int):
             # use 4 levels in the encoder path as suggested in the paper
-            f_maps = create_feature_maps(f_maps, number_of_fmaps=4)
+            f_maps = [f_maps * 2 ** k for k in range(4)]
 
         # create encoder path consisting of Encoder modules. The length of the encoder is equal to `len(f_maps)`
         # uses DoubleConv as a basic_module for the Encoder

@@ -1,9 +1,11 @@
-import numpy as np
 import os
-import tifffile as tiff
 import random
 import math
 import torch
+
+import numpy as np
+import tifffile as tiff
+
 from torch.utils.data import Dataset
 
 
@@ -150,7 +152,7 @@ class testset(Dataset):
         return len(self.name_list)
 
 
-def train_preprocess_lessMemoryMulStacks(args):
+def train_preprocess(args):
     """
     The original noisy stack is partitioned into thousands of 3D sub-stacks (patch) with the setting
     overlap factor in each dimension.
@@ -170,10 +172,6 @@ def train_preprocess_lessMemoryMulStacks(args):
     print('\033[1;31mImage list for training -----> \033[0m')
     stack_num = len(list(os.walk(args.datasets_path, topdown=False))[-1][-1])
     print('Total stack number -----> ', stack_num)
-    # if args.datasets_path[-1]!='/':
-    #     datasets_name=args.datasets_path.split("/")[-1]
-    # else:
-    #     datasets_name=args.datasets_path.split("/")[-2]
 
     gap_x = int(args.patch_x * (1 - args.overlap_factor))  # patch gap in x
     gap_y = int(args.patch_y * (1 - args.overlap_factor))  # patch gap in y
@@ -196,10 +194,8 @@ def train_preprocess_lessMemoryMulStacks(args):
         whole_y = noise_im.shape[1]
         whole_t = noise_im.shape[0]
         print('Noise image shape -----> ', noise_im.shape)
-        # No preprocessing
+
         noise_im = noise_im.astype(np.float32)
-        # Minus mean before training
-        # noise_im = noise_im-noise_im.mean()
         noise_im, _ = normalize(noise_im, mode=args.norm_mode)
 
         noise_im_all.append(noise_im)
@@ -247,7 +243,7 @@ def train_preprocess_lessMemoryMulStacks(args):
     return name_list, coordinate_list, stack_index, noise_im_all
 
 
-def test_preprocess_chooseOne(args, img_id):
+def test_preprocess(args, img_id):
     """
     Choose one original noisy stack and partition it into thousands of 3D sub-stacks (patch) with the setting
     overlap factor in each dimension.
@@ -262,11 +258,6 @@ def test_preprocess_chooseOne(args, img_id):
         im_name : the file name of the noisy stacks
 
     """
-    # if args.datasets_path[-1]!='/':
-    #     datasets_name=args.datasets_path.split("/")[-1]
-    # else:
-    #     datasets_name=args.datasets_path.split("/")[-2]
-
     patch_y = args.patch_y
     patch_x = args.patch_x
     patch_t = args.patch_t
@@ -289,20 +280,11 @@ def test_preprocess_chooseOne(args, img_id):
     im_dir = im_folder + '//' + im_name
     noise_im = tiff.imread(im_dir)
     input_data_type = noise_im.dtype
-    # norm_param = noise_im.mean()
-    # print('noise_im max -----> ',noise_im.max())
-    # print('noise_im min -----> ',noise_im.min())
-    # if noise_im.shape[0] > args.test_datasize:
-    #     noise_im = noise_im[0:args.test_datasize, :, :]
+
     print('Testing image name -----> ', im_name)
     print('Testing image shape -----> ', noise_im.shape)
-    # Minus mean before training
     noise_im = noise_im.astype(np.float32)
-    # noise_im = noise_im-img_mean
     noise_im, norm_param = normalize(noise_im, args.norm_mode)
-    # No preprocessing
-    # noise_im = noise_im.astype(np.float32) / args.scale_factor
-    # noise_im = (noise_im-noise_im.min()).astype(np.float32)/args.scale_factor
 
     whole_x = noise_im.shape[2]
     whole_y = noise_im.shape[1]
@@ -311,9 +293,7 @@ def test_preprocess_chooseOne(args, img_id):
     num_w = math.ceil((whole_x - patch_x + gap_x) / gap_x)
     num_h = math.ceil((whole_y - patch_y + gap_y) / gap_y)
     num_s = math.ceil((whole_t - patch_t + gap_t) / gap_t)
-    # print('int((whole_y-patch_y+gap_y)/gap_y) -----> ',int((whole_y-patch_y+gap_y)/gap_y))
-    # print('int((whole_x-patch_x+gap_x)/gap_x) -----> ',int((whole_x-patch_x+gap_x)/gap_x))
-    # print('int((whole_t-patch_t2+gap_t2)/gap_t2) -----> ',int((whole_t-patch_t2+gap_t2)/gap_t2))
+
     for x in range(0, num_h):
         for y in range(0, num_w):
             for z in range(0, num_s):
@@ -393,11 +373,8 @@ def test_preprocess_chooseOne(args, img_id):
                     single_coordinate['patch_start_s'] = cut_s
                     single_coordinate['patch_end_s'] = patch_t - cut_s
 
-                # noise_patch1 = noise_im[init_s:end_s,init_h:end_h,init_w:end_w]
                 patch_name = args.datasets_name + '_x' + str(x) + '_y' + str(y) + '_z' + str(z)
-                # train_raw.append(noise_patch1.transpose(1,2,0))
                 name_list.append(patch_name)
-                # print(' single_coordinate -----> ',single_coordinate)
                 coordinate_list[patch_name] = single_coordinate
 
     return name_list, noise_im, coordinate_list, im_name, norm_param, input_data_type
