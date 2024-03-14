@@ -169,9 +169,6 @@ def train_preprocess(args):
     stack_index = []
     noise_im_all = []
     ind = 0
-    print('\033[1;31mImage list for training -----> \033[0m')
-    stack_num = len(list(os.walk(args.datasets_path, topdown=False))[-1][-1])
-    print('Total stack number -----> ', stack_num)
 
     gap_x = int(args.patch_x * (1 - args.overlap_factor))  # patch gap in x
     gap_y = int(args.patch_y * (1 - args.overlap_factor))  # patch gap in y
@@ -186,14 +183,14 @@ def train_preprocess(args):
         else:
             return t
 
-    for im_name in list(os.walk(args.datasets_path, topdown=False))[-1][-1]:
-        print('Noise image name -----> ', im_name)
+    print('\033[1;31m===== Stack Information ===== \033[0m')
+    for i, im_name in enumerate(list(os.walk(args.datasets_path, topdown=False))[-1][-1]):
         im_dir = args.datasets_path + '//' + im_name
         noise_im = tiff.imread(im_dir)
         whole_x = noise_im.shape[2]
         whole_y = noise_im.shape[1]
         whole_t = noise_im.shape[0]
-        print('Noise image shape -----> ', noise_im.shape)
+        print(f'[{i+1}] {im_name} {noise_im.shape}')
 
         noise_im = noise_im.astype(np.float32)
         noise_im, _ = normalize(noise_im, mode=args.norm_mode)
@@ -239,6 +236,7 @@ def train_preprocess(args):
                     coordinate_list[patch_name] = single_coordinate
                     stack_index.append(ind)
         ind = ind + 1
+    print()
     
     return name_list, coordinate_list, stack_index, noise_im_all
 
@@ -281,8 +279,7 @@ def test_preprocess(args, img_id):
     noise_im = tiff.imread(im_dir)
     input_data_type = noise_im.dtype
 
-    print('Testing image name -----> ', im_name)
-    print('Testing image shape -----> ', noise_im.shape)
+    print(f'Stack information: {im_name} {noise_im.shape}')
     noise_im = noise_im.astype(np.float32)
     noise_im, norm_param = normalize(noise_im, args.norm_mode)
 

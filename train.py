@@ -17,6 +17,7 @@ def parse_args():
     parser.add_argument("-r", "--gama", default=0.5, type=float, help="hyper-parameters for constraint term in loss function")
     parser.add_argument("-w", "--num_workers", default=4, type=int, help="number of workers to set dataloader")
     parser.add_argument("-t", "--notes", default="train", type=str, help="notes for the experiment")
+    parser.add_argument('--train_log', action='store_true', help="whether to save log of training process.")
     parser.add_argument('--validation', action='store_true', help="whether to set up validation during training")
     parser.add_argument("--val_datasize", default=50, type=int, help="max number of slices in the validation output")
 

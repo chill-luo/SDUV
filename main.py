@@ -38,15 +38,15 @@ def train(args):
     if torch.cuda.is_available():
         local_model = local_model.cuda()
         local_model = nn.DataParallel(local_model, device_ids=range(ngpu))
-        print('\033[1;31mUsing {} GPU(s) for training -----> \033[0m'.format(torch.cuda.device_count()))
 
     prev_time = time.time()
     time_queue = QueueList(max_size=25)
     test_time = 0
-    train_logger = XlsBook(['Epoch', 'Iteration', 'L1', 'L2', 'Loss'])
+    train_logger = XlsBook(['Epoch', 'Iteration', 'Loss_rec', 'Loss_reg', 'Loss_total'])
     L1_pixelwise = torch.nn.L1Loss().cuda()
     L2_pixelwise = torch.nn.MSELoss().cuda()
 
+    print('\033[1;31m===== Start Training ===== \033[0m')
     for epoch in range(0, args.n_epochs):
         with tqdm(total=len(trainloader), desc=f'Epoch {epoch + 1}/{args.n_epochs}', unit='batch') as pbar:
             for iteration, patch in enumerate(trainloader):
@@ -81,16 +81,6 @@ def train(args):
                 train_logger.write([epoch+1, iteration+1, rec_loss.item(), reg_loss.item(), loss.item()])
                 pbar.update(1)
 
-        if args.validation:
-            print(f'\nValidating model of epoch {epoch + 1} on the first noisy file ----->')
-            test_prev_time = time.time()
-
-            validate(args, local_model, epoch, iteration, save_path)
-
-            test_time = time.time() - test_prev_time
-            print('\n', end=' ')
-
-
         if (epoch + 1) % args.save_round == 0:
             model_save_name = 'Epoch_' + str(epoch + 1).zfill(3) + '.pth'
             model_save_path = os.path.join(save_path, model_save_name)
@@ -99,11 +89,20 @@ def train(args):
                 torch.save(local_model.module.state_dict(), model_save_path)
             else:
                 torch.save(local_model.state_dict(), model_save_path)
+            print(f'Model {model_save_name} saved.')
 
-            print(f'Model of epoch {epoch + 1} has been saved as {model_save_path}')
+        if args.validation:
+            print(f'Validation for Epoch {epoch + 1}:')
+            test_prev_time = time.time()
+
+            validate(args, local_model, epoch, save_path)
+
+            test_time = time.time() - test_prev_time
+            print()
     
-    train_logger.save(os.path.join(save_path, 'logger_train.xlsx'))
-    print(f"Train of '{args.notes}' finished. Save all models to '{save_path}'.")
+    if args.train_log:
+        train_logger.save(os.path.join(save_path, 'logger.xlsx'))
+    print(f"Train of '{args.notes}' finished. Models have been saved to '{save_path}'.")
 
 
 def validate(args, local_model, train_epoch, pth_path):
@@ -181,7 +180,7 @@ def test(args):
     exp_name = '_'.join(('DataFolderIs', args.datasets_name, 'ModelFolderIs', args.denoise_model))
     output_path = os.path.join(args.output_dir, exp_name)
     os.makedirs(output_path, exist_ok=True)
-    with open(os.path.join(output_path, 'config.yaml'), 'w') as f:
+    with open(os.path.join(output_path, f'config_{datetime.datetime.now().strftime("%Y%m%d%H%M")}.yaml'), 'w') as f:
         yaml.dump(args, f)
 
     pths_num = [int(p) for p in args.pths_num.split(',')]
@@ -192,10 +191,10 @@ def test(args):
     im_folder = args.datasets_path
     img_list = list(os.walk(im_folder, topdown=False))[-1][-1]
     img_list.sort()
-    print('\033[1;31mStacks for processing -----> \033[0m')
-    print('Total stack number -----> ', len(img_list))
-    for img in img_list: 
+    print('\033[1;31m===== Stack List ===== \033[0m')
+    for img in enumerate(img_list): 
         print(img)
+    print()
 
     denoise_generator = UNet3D(in_channels=1,
                                 out_channels=1,
@@ -208,8 +207,9 @@ def test(args):
     if torch.cuda.is_available():
         local_model = local_model.cuda()
         local_model = nn.DataParallel(local_model, device_ids=range(ngpu))
-        print('\033[1;31mUsing {} GPU(s) for testing -----> \033[0m'.format(torch.cuda.device_count()))
 
+    start_time = time.time()
+    print('\033[1;31m===== Start Testing ===== \033[0m')
     for pth_index in range(len(model_list)):
         pth_name = model_list[pth_index]
         output_path_name = os.path.join(output_path, os.path.splitext(pth_name)[0])
@@ -232,7 +232,7 @@ def test(args):
             test_data = testset(name_list, coordinate_list, noise_img)
             testloader = DataLoader(test_data, batch_size=1, shuffle=False, num_workers=args.num_workers)
             
-            print(f'\nDenoising stack {os.path.splitext(test_im_name)[0]} with model {pth_name}:')
+            print(f'Model information: {pth_name}')
             with tqdm(total=len(testloader), desc=f'[Model {pth_index+1}/{len(model_list)}, Stack {N + 1}/{len(img_list)}]', unit='patch') as pbar:
                 for iteration, (noise_patch, single_coordinate) in enumerate(testloader):
                     noise_patch = noise_patch.cuda()
@@ -291,4 +291,8 @@ def test(args):
             result_path = os.path.join(output_path_name, result_name)
             io.imsave(result_path, output_img, check_contrast=False)
 
-    print('Test finished. Save all results to disk.')
+            print()
+
+    stop_time = time.time()
+    print(f"All finished. Results have been saved to '{output_path}'.")
+    print(f'Time used: {datetime.timedelta(seconds=int(stop_time - start_time))}')
