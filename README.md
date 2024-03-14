@@ -16,7 +16,7 @@ Implementation for the paper 《Self-supervised Denoising under Variations betwe
 Using the datasets *Planaria* and *Tribolium* provided by [CARE](https://github.com/CSBDeep/CSBDeep) as examples:
 
 1. Download the datasets from the [link](https://publications.mpi-cbg.de/publications-sites/7207/%E2%80%B8).
-2. Place all noisy stacks into a custom folder.
+2. Place noisy stacks into a custom folder.
 
 If you are using your own datasets, it is important to pay attention to the file format. Currently, the codel has been primarily validated on 16-bit `.tif` stack files. If necessary, adjustments can be made to the `dataset.py` file to accommodate specific requirements.
 
